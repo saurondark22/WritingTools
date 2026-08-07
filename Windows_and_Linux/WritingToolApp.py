@@ -14,7 +14,13 @@ import ui.CustomPopupWindow
 import ui.OnboardingWindow
 import ui.ResponseWindow
 import ui.SettingsWindow
-from aiprovider import GeminiProvider, OllamaCloudProvider, OllamaProvider, OpenAICompatibleProvider, obfuscate_api_key
+from aiprovider import (
+    GeminiProvider,
+    OllamaCloudProvider,
+    OllamaProvider,
+    OpenAICompatibleProvider,
+    obfuscate_api_key,
+)
 from history_manager import HistoryManager
 from pynput import keyboard as pykeyboard
 from PySide6 import QtCore, QtGui, QtWidgets
@@ -32,6 +38,7 @@ class _SelectedTextHolder:
     `process_option_thread`. The capture thread sets `text` and signals
     `ready` once done.
     """
+
     __slots__ = ("text", "ready")
 
     def __init__(self):
@@ -43,17 +50,17 @@ class WritingToolApp(QtWidgets.QApplication):
     """
     The main application class for Writing Tools.
     """
+
     output_ready_signal = Signal(str)
     show_message_signal = Signal(str, str)  # a signal for showing message boxes
     hotkey_triggered_signal = Signal()
     followup_response_signal = Signal(str)
     history_updated_signal = Signal()
 
-
     def __init__(self, argv):
         super().__init__(argv)
         self.current_response_window = None
-        logging.debug('Initializing WritingToolApp')
+        logging.debug("Initializing WritingToolApp")
         self.output_ready_signal.connect(self.replace_text)
         self.show_message_signal.connect(self.show_message_box)
         self.hotkey_triggered_signal.connect(self.on_hotkey_pressed)
@@ -68,8 +75,7 @@ class WritingToolApp(QtWidgets.QApplication):
         self.options_path = None
         self.load_options()
         self.history_manager = HistoryManager(
-            os.path.dirname(sys.argv[0]),
-            on_updated=self.history_updated_signal.emit
+            os.path.dirname(sys.argv[0]), on_updated=self.history_updated_signal.emit
         )
         self.history_updated_signal.connect(self.history_manager.refresh_window)
         self.onboarding_window = None
@@ -114,26 +120,37 @@ class WritingToolApp(QtWidgets.QApplication):
         ]
 
         if not self.config:
-            logging.debug('No config found, showing onboarding')
+            logging.debug("No config found, showing onboarding")
             self.show_onboarding()
         else:
-            logging.debug('Config found, setting up hotkey and tray icon')
+            logging.debug("Config found, setting up hotkey and tray icon")
 
             # Initialize the current provider, defaulting to Gemini
-            provider_name = self.config.get('provider', 'Gemini')
+            provider_name = self.config.get("provider", "Gemini")
 
-            self.current_provider = next((provider for provider in self.providers if provider.provider_name == provider_name), None)
+            self.current_provider = next(
+                (
+                    provider
+                    for provider in self.providers
+                    if provider.provider_name == provider_name
+                ),
+                None,
+            )
             if not self.current_provider:
-                logging.warning(f'Provider {provider_name} not found. Using default provider.')
+                logging.warning(
+                    f"Provider {provider_name} not found. Using default provider."
+                )
                 self.current_provider = self.providers[0]
 
-            self.current_provider.load_config(self.config.get("providers", {}).get(provider_name, {}))
+            self.current_provider.load_config(
+                self.config.get("providers", {}).get(provider_name, {})
+            )
 
             self.create_tray_icon()
             self.register_hotkey()
 
             try:
-                lang = self.config['locale']
+                lang = self.config["locale"]
             except KeyError:
                 lang = None
             self.change_language(lang)
@@ -148,13 +165,13 @@ class WritingToolApp(QtWidgets.QApplication):
 
     def setup_translations(self, lang=None):
         if not lang:
-            lang = QLocale.system().name().split('_')[0]
+            lang = QLocale.system().name().split("_")[0]
 
         try:
             translation = gettext.translation(
-                'messages',
-                localedir=os.path.join(os.path.dirname(__file__), 'locales'),
-                languages=[lang]
+                "messages",
+                localedir=os.path.join(os.path.dirname(__file__), "locales"),
+                languages=[lang],
             )
         except FileNotFoundError:
             translation = gettext.NullTranslations()
@@ -178,7 +195,7 @@ class WritingToolApp(QtWidgets.QApplication):
 
         # Update all other windows
         for widget in QApplication.topLevelWidgets():
-            if widget != self and hasattr(widget, 'retranslate_ui'):
+            if widget != self and hasattr(widget, "retranslate_ui"):
                 widget.retranslate_ui()
 
     def check_trigger_spam(self):
@@ -187,14 +204,15 @@ class WritingToolApp(QtWidgets.QApplication):
         Returns True if spam is detected.
         """
         current_time = time.time()
-        
+
         # Add current trigger
         self.recent_triggers.append(current_time)
-        
+
         # Remove old triggers outside the window
-        self.recent_triggers = [t for t in self.recent_triggers 
-                            if current_time - t <= self.TRIGGER_WINDOW]
-        
+        self.recent_triggers = [
+            t for t in self.recent_triggers if current_time - t <= self.TRIGGER_WINDOW
+        ]
+
         # Check if we have too many triggers in the window
         return len(self.recent_triggers) >= self.MAX_TRIGGERS
 
@@ -202,14 +220,14 @@ class WritingToolApp(QtWidgets.QApplication):
         """
         Load the configuration file.
         """
-        self.config_path = os.path.join(os.path.dirname(sys.argv[0]), 'config.json')
-        logging.debug(f'Loading config from {self.config_path}')
+        self.config_path = os.path.join(os.path.dirname(sys.argv[0]), "config.json")
+        logging.debug(f"Loading config from {self.config_path}")
         if os.path.exists(self.config_path):
-            with open(self.config_path, 'r') as f:
+            with open(self.config_path, "r") as f:
                 self.config = json.load(f)
-                logging.debug('Config loaded successfully')
+                logging.debug("Config loaded successfully")
         else:
-            logging.debug('Config file not found')
+            logging.debug("Config file not found")
             self.config = None
 
     def _migrate_config(self):
@@ -243,38 +261,38 @@ class WritingToolApp(QtWidgets.QApplication):
         """
         CURRENT_CONFIG_VERSION = 9
         # Default for new installs and migrating users.
-        NEW_DEFAULT_MODEL = 'gemini-flash-latest'
+        NEW_DEFAULT_MODEL = "gemini-flash-latest"
         # v8 -> v9 model mapping. Every retired preset is bumped to the new
         # default so users get the fast Flash-tier experience by default.
         V8_TO_V9_MAP = {
-            'gemma-3-27b-it':           NEW_DEFAULT_MODEL,
-            'gemma-3-4b-it':            NEW_DEFAULT_MODEL,
-            'gemini-flash-lite-latest': NEW_DEFAULT_MODEL,
+            "gemma-3-27b-it": NEW_DEFAULT_MODEL,
+            "gemma-3-4b-it": NEW_DEFAULT_MODEL,
+            "gemini-flash-lite-latest": NEW_DEFAULT_MODEL,
             # 'gemini-flash-latest' itself is already current — no entry needed.
         }
 
         # New user (no config yet) — onboarding will create a fresh, current
         # config; nothing to migrate.
         if not self.config:
-            logging.debug('No config to migrate (new user)')
+            logging.debug("No config to migrate (new user)")
             return
 
-        needs_v8 = not self.config.get('is_config_file_updated_for_v8', False)
-        needs_v9 = not self.config.get('is_config_file_updated_for_v9', False)
+        needs_v8 = not self.config.get("is_config_file_updated_for_v8", False)
+        needs_v9 = not self.config.get("is_config_file_updated_for_v9", False)
 
         if not needs_v8 and not needs_v9:
-            logging.debug('Config already up-to-date, no migration needed')
+            logging.debug("Config already up-to-date, no migration needed")
             return
 
-        logging.info(f'Running config migration (needs_v8={needs_v8}, needs_v9={needs_v9})...')
-
-        config_changed = False
-        gemini_config = (
-            self.config.get('providers', {}).get('Gemini (Recommended)')
+        logging.info(
+            f"Running config migration (needs_v8={needs_v8}, needs_v9={needs_v9})..."
         )
 
+        config_changed = False
+        gemini_config = self.config.get("providers", {}).get("Gemini (Recommended)")
+
         if gemini_config is not None:
-            old_model = gemini_config.get('model_name', '')
+            old_model = gemini_config.get("model_name", "")
 
             # v8: pre-v8 users didn't have a custom-model field, so we can
             # bump unconditionally. We skip the historical "v8 default of
@@ -282,19 +300,21 @@ class WritingToolApp(QtWidgets.QApplication):
             # current default.
             if needs_v8:
                 if old_model != NEW_DEFAULT_MODEL:
-                    gemini_config['model_name'] = NEW_DEFAULT_MODEL
-                    logging.info(f'[v8] Bumped Gemini model "{old_model}" -> "{NEW_DEFAULT_MODEL}"')
+                    gemini_config["model_name"] = NEW_DEFAULT_MODEL
+                    logging.info(
+                        f'[v8] Bumped Gemini model "{old_model}" -> "{NEW_DEFAULT_MODEL}"'
+                    )
                     config_changed = True
 
                 # Obfuscate the API key. The helper is idempotent — already-
                 # obfuscated keys (with the `enc:` prefix) pass through
                 # unchanged.
-                api_key = gemini_config.get('api_key', '')
+                api_key = gemini_config.get("api_key", "")
                 if api_key:
                     new_key = obfuscate_api_key(api_key)
                     if new_key != api_key:
-                        gemini_config['api_key'] = new_key
-                        logging.info('[v8] Obfuscated plaintext Gemini API key')
+                        gemini_config["api_key"] = new_key
+                        logging.info("[v8] Obfuscated plaintext Gemini API key")
                         config_changed = True
 
             # v9: only runs for users coming from v8. Preserve tier choice via
@@ -304,18 +324,20 @@ class WritingToolApp(QtWidgets.QApplication):
             elif needs_v9:
                 new_model = V8_TO_V9_MAP.get(old_model)
                 if new_model is not None and new_model != old_model:
-                    gemini_config['model_name'] = new_model
-                    logging.info(f'[v9] Bumped Gemini model "{old_model}" -> "{new_model}"')
+                    gemini_config["model_name"] = new_model
+                    logging.info(
+                        f'[v9] Bumped Gemini model "{old_model}" -> "{new_model}"'
+                    )
                     config_changed = True
 
         # Stamp every version flag up to current so we never re-run on
         # subsequent startups, even if no fields actually needed changing
         # (e.g., a v8 user who'd already picked a custom non-deprecated model).
         for n in range(8, CURRENT_CONFIG_VERSION + 1):
-            self.config[f'is_config_file_updated_for_v{n}'] = True
+            self.config[f"is_config_file_updated_for_v{n}"] = True
 
         self.save_config(self.config)
-        logging.info('Config migration complete')
+        logging.info("Config migration complete")
 
         # Single restart popup, regardless of how many versions we jumped.
         if config_changed:
@@ -323,10 +345,10 @@ class WritingToolApp(QtWidgets.QApplication):
             # point in __init__.
             QMessageBox.information(
                 None,
-                'Writing Tools Updated',
-                'Writing Tools has just completed an internal update '
-                '(your config.json was migrated to the current format).\n\n'
-                'Please restart Writing Tools.'
+                "Writing Tools Updated",
+                "Writing Tools has just completed an internal update "
+                "(your config.json was migrated to the current format).\n\n"
+                "Please restart Writing Tools.",
             )
             sys.exit(0)
 
@@ -334,30 +356,30 @@ class WritingToolApp(QtWidgets.QApplication):
         """
         Load the options file.
         """
-        self.options_path = os.path.join(os.path.dirname(sys.argv[0]), 'options.json')
-        logging.debug(f'Loading options from {self.options_path}')
+        self.options_path = os.path.join(os.path.dirname(sys.argv[0]), "options.json")
+        logging.debug(f"Loading options from {self.options_path}")
         if os.path.exists(self.options_path):
-            with open(self.options_path, 'r') as f:
+            with open(self.options_path, "r") as f:
                 self.options = json.load(f)
-                logging.debug('Options loaded successfully')
+                logging.debug("Options loaded successfully")
         else:
-            logging.debug('Options file not found')
+            logging.debug("Options file not found")
             self.options = None
 
     def save_config(self, config):
         """
         Save the configuration file.
         """
-        with open(self.config_path, 'w') as f:
+        with open(self.config_path, "w") as f:
             json.dump(config, f, indent=4)
-            logging.debug('Config saved successfully')
+            logging.debug("Config saved successfully")
         self.config = config
 
     def show_onboarding(self):
         """
         Show the onboarding window for first-time users.
         """
-        logging.debug('Showing onboarding window')
+        logging.debug("Showing onboarding window")
         self.onboarding_window = ui.OnboardingWindow.OnboardingWindow(self)
         self.onboarding_window.close_signal.connect(self.exit_app)
         self.onboarding_window.show()
@@ -369,9 +391,8 @@ class WritingToolApp(QtWidgets.QApplication):
         pynput's `<ctrl>+j` / `<ctrl>+<alt>+<space>` format. Single-char keys
         stay as-is; multi-char keys (modifiers, named keys) get wrapped in <>.
         """
-        return '+'.join(
-            f'{t}' if len(t) <= 1 else f'<{t}>'
-            for t in hotkey_str.split('+')
+        return "+".join(
+            f"{t}" if len(t) <= 1 else f"<{t}>" for t in hotkey_str.split("+")
         )
 
     def start_hotkey_listener(self):
@@ -394,7 +415,7 @@ class WritingToolApp(QtWidgets.QApplication):
             hotkey_map = {}
 
             # --- Global Writing Tools hotkey ----------------------------------
-            orig_shortcut = self.config.get('shortcut', 'ctrl+space')
+            orig_shortcut = self.config.get("shortcut", "ctrl+space")
             self.registered_hotkey = orig_shortcut
             try:
                 global_parsed = self._to_pynput_hotkey(orig_shortcut)
@@ -404,11 +425,11 @@ class WritingToolApp(QtWidgets.QApplication):
                 def on_global_activate():
                     if self.paused:
                         return
-                    logging.debug('triggered global hotkey')
+                    logging.debug("triggered global hotkey")
                     self.hotkey_triggered_signal.emit()
 
                 hotkey_map[global_parsed] = on_global_activate
-                logging.debug(f'Registered global hotkey: {global_parsed}')
+                logging.debug(f"Registered global hotkey: {global_parsed}")
             except Exception as e:
                 logging.error(f'Failed to parse global hotkey "{orig_shortcut}": {e}')
 
@@ -417,9 +438,9 @@ class WritingToolApp(QtWidgets.QApplication):
             # so a "fire directly" hotkey doesn't make sense for it.
             if self.options:
                 for button_name, button_cfg in self.options.items():
-                    if button_name == 'Custom':
+                    if button_name == "Custom":
                         continue
-                    raw = (button_cfg.get('hotkey') or '').strip()
+                    raw = (button_cfg.get("hotkey") or "").strip()
                     if not raw:
                         continue
                     try:
@@ -434,20 +455,22 @@ class WritingToolApp(QtWidgets.QApplication):
                     if parsed in hotkey_map:
                         logging.warning(
                             f'Hotkey "{raw}" for button "{button_name}" '
-                            f'conflicts with an already-registered binding; skipping'
+                            f"conflicts with an already-registered binding; skipping"
                         )
                         continue
                     hotkey_map[parsed] = self._make_button_hotkey_callback(button_name)
-                    logging.debug(f'Registered button hotkey: {parsed} -> {button_name}')
+                    logging.debug(
+                        f"Registered button hotkey: {parsed} -> {button_name}"
+                    )
 
             if not hotkey_map:
-                logging.warning('No hotkeys to register')
+                logging.warning("No hotkeys to register")
                 return
 
             self.hotkey_listener = pykeyboard.GlobalHotKeys(hotkey_map)
             self.hotkey_listener.start()
         except Exception as e:
-            logging.error(f'Failed to register hotkey listener: {e}')
+            logging.error(f"Failed to register hotkey listener: {e}")
 
     def _make_button_hotkey_callback(self, button_name):
         """
@@ -459,6 +482,7 @@ class WritingToolApp(QtWidgets.QApplication):
         invokes callbacks on its listener thread; popup/clipboard work needs
         to happen on the main thread.
         """
+
         def callback():
             if self.paused:
                 return
@@ -473,8 +497,9 @@ class WritingToolApp(QtWidgets.QApplication):
                 self,
                 "_fire_button_directly",
                 QtCore.Qt.ConnectionType.QueuedConnection,
-                QtCore.Q_ARG(str, button_name)
+                QtCore.Q_ARG(str, button_name),
             )
+
         return callback
 
     @Slot(str)
@@ -512,22 +537,22 @@ class WritingToolApp(QtWidgets.QApplication):
         """
         Register the global hotkey for activating Writing Tools.
         """
-        logging.debug('Registering hotkey')
+        logging.debug("Registering hotkey")
         self.start_hotkey_listener()
-        logging.debug('Hotkey registered')
+        logging.debug("Hotkey registered")
 
     def on_hotkey_pressed(self):
         """
         Handle the hotkey press event.
         """
-        logging.debug('Hotkey pressed')
-        
+        logging.debug("Hotkey pressed")
+
         # Check for spam triggers
         if self.check_trigger_spam():
-            logging.warning('Hotkey spam detected - quitting application')
+            logging.warning("Hotkey spam detected - quitting application")
             self.exit_app()
             return
-            
+
         # Original hotkey handling continues...
         if self.current_provider:
             logging.debug("Cancelling current provider's request")
@@ -535,7 +560,9 @@ class WritingToolApp(QtWidgets.QApplication):
             self.output_queue = ""
 
         # noinspection PyTypeChecker
-        QtCore.QMetaObject.invokeMethod(self, "_show_popup", QtCore.Qt.ConnectionType.QueuedConnection)
+        QtCore.QMetaObject.invokeMethod(
+            self, "_show_popup", QtCore.Qt.ConnectionType.QueuedConnection
+        )
 
     @Slot()
     def _show_popup(self):
@@ -549,7 +576,7 @@ class WritingToolApp(QtWidgets.QApplication):
         `process_option_thread` waits on the holder before kicking off the
         AI request.
         """
-        logging.debug('Showing popup window')
+        logging.debug("Showing popup window")
 
         # Fresh holder per popup. Fire Ctrl+C *before* we create the popup
         # so the keystroke is queued while focus is still on the user's
@@ -559,25 +586,28 @@ class WritingToolApp(QtWidgets.QApplication):
 
         try:
             if self.popup_window is not None:
-                logging.debug('Existing popup window found')
+                logging.debug("Existing popup window found")
                 if self.popup_window.isVisible():
-                    logging.debug('Closing existing visible popup window')
+                    logging.debug("Closing existing visible popup window")
                     self.popup_window.close()
                 self.popup_window = None
-            logging.debug('Creating new popup window')
+            logging.debug("Creating new popup window")
             self.popup_window = ui.CustomPopupWindow.CustomPopupWindow(self)
 
             # Set the window icon
-            icon_path = os.path.join(os.path.dirname(sys.argv[0]), 'icons', 'app_icon.png')
-            if os.path.exists(icon_path): self.setWindowIcon(QtGui.QIcon(icon_path))
+            icon_path = os.path.join(
+                os.path.dirname(sys.argv[0]), "icons", "app_icon.png"
+            )
+            if os.path.exists(icon_path):
+                self.setWindowIcon(QtGui.QIcon(icon_path))
             # Get the screen containing the cursor
             cursor_pos = QCursor.pos()
             screen = QGuiApplication.screenAt(cursor_pos)
             if screen is None:
                 screen = QGuiApplication.primaryScreen()
             screen_geometry = screen.geometry()
-            logging.debug(f'Cursor is on screen: {screen.name()}')
-            logging.debug(f'Screen geometry: {screen_geometry}')
+            logging.debug(f"Cursor is on screen: {screen.name()}")
+            logging.debug(f"Screen geometry: {screen_geometry}")
             # Show the popup to get its size
             self.popup_window.show()
             self.popup_window.adjustSize()
@@ -597,9 +627,9 @@ class WritingToolApp(QtWidgets.QApplication):
             if y + popup_height > screen_geometry.bottom():
                 y = cursor_pos.y() - popup_height - 10  # 10 pixels above cursor
             self.popup_window.move(x, y)
-            logging.debug(f'Popup window moved to position: ({x}, {y})')
+            logging.debug(f"Popup window moved to position: ({x}, {y})")
         except Exception as e:
-            logging.error(f'Error showing popup window: {e}', exc_info=True)
+            logging.error(f"Error showing popup window: {e}", exc_info=True)
 
     def _fire_ctrl_c_and_capture_async(self, holder):
         """
@@ -617,42 +647,42 @@ class WritingToolApp(QtWidgets.QApplication):
         try:
             clipboard_backup = pyperclip.paste()
         except Exception:
-            clipboard_backup = ''
+            clipboard_backup = ""
 
         self.clear_clipboard()
 
         kbrd = pykeyboard.Controller()
         try:
             kbrd.press(pykeyboard.Key.ctrl.value)
-            kbrd.press('c')
-            kbrd.release('c')
+            kbrd.press("c")
+            kbrd.release("c")
             kbrd.release(pykeyboard.Key.ctrl.value)
         except Exception as e:
-            logging.error(f'Error simulating Ctrl+C: {e}')
+            logging.error(f"Error simulating Ctrl+C: {e}")
 
         def _poll_clipboard():
             # Lock so concurrent hotkey presses don't trample each other's
             # in-flight captures.
             with self._capture_lock:
-                text = ''
+                text = ""
                 try:
                     deadline = time.time() + 2.0
                     while time.time() < deadline:
                         try:
-                            text = pyperclip.paste() or ''
+                            text = pyperclip.paste() or ""
                         except Exception as e:
-                            logging.error(f'Error reading clipboard during poll: {e}')
-                            text = ''
+                            logging.error(f"Error reading clipboard during poll: {e}")
+                            text = ""
                         if text:
                             break
                         time.sleep(0.05)
                     holder.text = text
-                    logging.debug(f'Captured selected text (len={len(text)})')
+                    logging.debug(f"Captured selected text (len={len(text)})")
                 finally:
                     try:
                         pyperclip.copy(clipboard_backup)
                     except Exception as e:
-                        logging.error(f'Error restoring clipboard: {e}')
+                        logging.error(f"Error restoring clipboard: {e}")
                     holder.ready.set()
 
         threading.Thread(target=_poll_clipboard, daemon=True).start()
@@ -663,9 +693,9 @@ class WritingToolApp(QtWidgets.QApplication):
         Clear the system clipboard.
         """
         try:
-            pyperclip.copy('')
+            pyperclip.copy("")
         except Exception as e:
-            logging.error(f'Error clearing clipboard: {e}')
+            logging.error(f"Error clearing clipboard: {e}")
 
     def process_option(self, option, custom_change=None):
         """
@@ -674,20 +704,18 @@ class WritingToolApp(QtWidgets.QApplication):
         the popup's click handler returns immediately and the GUI thread
         is never blocked on the clipboard read.
         """
-        logging.debug(f'Processing option: {option}')
+        logging.debug(f"Processing option: {option}")
 
         # Drop any stale ref so a previous run's late-arriving response can't
         # land in a now-irrelevant window. The new window (if any) is created
         # by the worker via `_setup_response_window` once the text is in.
-        if hasattr(self, 'current_response_window'):
-            delattr(self, 'current_response_window')
+        if hasattr(self, "current_response_window"):
+            delattr(self, "current_response_window")
 
         self.history_manager.clear_pending_inline_history()
 
         threading.Thread(
-            target=self.process_option_thread,
-            args=(option, custom_change),
-            daemon=True
+            target=self.process_option_thread, args=(option, custom_change), daemon=True
         ).start()
 
     @Slot(str, str)
@@ -702,7 +730,7 @@ class WritingToolApp(QtWidgets.QApplication):
         self.current_response_window.chat_history = [
             {
                 "role": "user",
-                "content": f"Original text to {option.lower()}:\n\n{selected_text}"
+                "content": f"Original text to {option.lower()}:\n\n{selected_text}",
             }
         ]
 
@@ -712,7 +740,7 @@ class WritingToolApp(QtWidgets.QApplication):
         either open a response window (for window-mode options) or set up
         for inline replacement, and finally run the AI request.
         """
-        logging.debug(f'Starting processing thread for option: {option}')
+        logging.debug(f"Starting processing thread for option: {option}")
 
         # Typically near-instant since the user took time to read the popup
         # and click. The 3s ceiling is a safety net for genuinely sluggish
@@ -720,86 +748,117 @@ class WritingToolApp(QtWidgets.QApplication):
         # first, the event is already set and this returns immediately.
         holder = self.current_text_holder
         if holder is None or not holder.ready.wait(timeout=3.0):
-            logging.warning('Timed out waiting for selected text capture')
-        selected_text = (holder.text if holder else '') or ''
+            logging.warning("Timed out waiting for selected text capture")
+        selected_text = (holder.text if holder else "") or ""
 
         if not selected_text.strip():
             # The chat-mode fallback that used to fire here was removed when
             # popup show became instant — we no longer have a way to detect
             # "user wants to chat" vs "capture failed", so we pick the safer
             # interpretation and surface the error.
-            self.show_message_signal.emit('Error', 'Please select text to use this option.')
+            self.show_message_signal.emit(
+                "Error", "Please select text to use this option."
+            )
             return
 
-        open_in_window = self.options[option]['open_in_window']
+        open_in_window = self.options[option]["open_in_window"]
         if open_in_window:
             QtCore.QMetaObject.invokeMethod(
                 self,
-                '_setup_response_window',
+                "_setup_response_window",
                 QtCore.Qt.ConnectionType.BlockingQueuedConnection,
                 QtCore.Q_ARG(str, option),
-                QtCore.Q_ARG(str, selected_text)
+                QtCore.Q_ARG(str, selected_text),
             )
         else:
             self.history_manager.set_pending_inline_history(option, selected_text)
 
+        response_window = None
         try:
-            selected_prompt = self.options.get(option, ('', ''))
-            prompt_prefix = selected_prompt['prefix']
-            system_instruction = selected_prompt['instruction']
-            if option == 'Custom':
+            selected_prompt = self.options.get(option, ("", ""))
+            prompt_prefix = selected_prompt["prefix"]
+            system_instruction = selected_prompt["instruction"]
+            if option == "Custom":
                 prompt = f"{prompt_prefix}Described change: {custom_change}\n\nText: {selected_text}"
             else:
                 prompt = f"{prompt_prefix}{selected_text}"
 
             self.output_queue = ""
 
-            logging.debug(f'Getting response from provider for option: {option}')
+            logging.debug(f"Getting response from provider for option: {option}")
 
             if open_in_window:
-                logging.debug('Getting response for window display')
-                response = self.current_provider.get_response(system_instruction, prompt, return_response=True)
-                response = response or ''
-                logging.debug(f'Got response of length: {len(response) if response else 0}')
+                logging.debug("Getting response for window display")
+                # Capture the window ref now: after a cancel + re-trigger, a
+                # stale worker must not touch the *new* request's window.
+                response_window = getattr(self, "current_response_window", None)
+                response = self.current_provider.get_response(
+                    system_instruction, prompt, return_response=True
+                )
+                response = response or ""
+                logging.debug(
+                    f"Got response of length: {len(response) if response else 0}"
+                )
 
-                cleaned_response = response.rstrip('\n')
-                if cleaned_response.strip():
-                    history_entry_id = self.history_manager.record_entry(
-                        option=option,
-                        input_text=selected_text,
-                        output_text=cleaned_response,
-                        conversation=[
-                            {'role': 'user', 'content': selected_text},
-                            {'role': 'assistant', 'content': cleaned_response}
-                        ]
-                    )
-                    self.history_manager.attach_entry_to_response_window(
-                        getattr(self, 'current_response_window', None),
-                        history_entry_id
-                    )
+                cleaned_response = response.rstrip("\n")
+                if not cleaned_response.strip():
+                    # Cancelled or failed request: the window would spin on
+                    # its thinking animation forever — close it instead.
+                    # Must go through the event loop: we're on a worker thread.
+                    if response_window is not None:
+                        QtCore.QMetaObject.invokeMethod(
+                            response_window,
+                            "close",
+                            QtCore.Qt.ConnectionType.QueuedConnection,
+                        )
+                    return
+                history_entry_id = self.history_manager.record_entry(
+                    option=option,
+                    input_text=selected_text,
+                    output_text=cleaned_response,
+                    conversation=[
+                        {"role": "user", "content": selected_text},
+                        {"role": "assistant", "content": cleaned_response},
+                    ],
+                )
+                self.history_manager.attach_entry_to_response_window(
+                    response_window, history_entry_id
+                )
 
-                if hasattr(self, 'current_response_window'):
+                if response_window and cleaned_response.strip():
                     # noinspection PyTypeChecker
                     QtCore.QMetaObject.invokeMethod(
-                        self.current_response_window,
-                        'set_text',
+                        response_window,
+                        "set_text",
                         QtCore.Qt.ConnectionType.QueuedConnection,
-                        QtCore.Q_ARG(str, response)
+                        QtCore.Q_ARG(str, response),
                     )
-                    logging.debug('Invoked set_text on response window')
+                    logging.debug("Invoked set_text on response window")
             else:
-                logging.debug('Getting response for direct replacement')
+                logging.debug("Getting response for direct replacement")
                 self.current_provider.get_response(system_instruction, prompt)
-                logging.debug('Response processed')
+                logging.debug("Response processed")
 
         except Exception as e:
-            logging.error(f'An error occurred: {e}', exc_info=True)
+            logging.error(f"An error occurred: {e}", exc_info=True)
             self.history_manager.clear_pending_inline_history()
 
+            # A window-mode request that died (timeout, network error) would
+            # otherwise keep its thinking animation spinning forever.
+            if response_window is not None:
+                QtCore.QMetaObject.invokeMethod(
+                    response_window,
+                    "close",
+                    QtCore.Qt.ConnectionType.QueuedConnection,
+                )
+
             if "Resource has been exhausted" in str(e):
-                self.show_message_signal.emit('Error - Rate Limit Hit', 'Whoops! You\'ve hit the per-minute rate limit of the Gemini API. Please try again in a few moments.\n\nIf this happens often, simply switch to a Gemini model with a higher usage limit in Settings.')
+                self.show_message_signal.emit(
+                    "Error - Rate Limit Hit",
+                    "Whoops! You've hit the per-minute rate limit of the Gemini API. Please try again in a few moments.\n\nIf this happens often, simply switch to a Gemini model with a higher usage limit in Settings.",
+                )
             else:
-                self.show_message_signal.emit('Error', f'An error occurred: {e}')
+                self.show_message_signal.emit("Error", f"An error occurred: {e}")
 
     @Slot(str, str)
     def show_message_box(self, title, message):
@@ -821,49 +880,58 @@ class WritingToolApp(QtWidgets.QApplication):
         """
         Replaces the text by pasting in the LLM generated text. With "Key Points" and "Summary", invokes a window with the output instead.
         """
-        error_message = 'ERROR_TEXT_INCOMPATIBLE_WITH_REQUEST'
+        error_message = "ERROR_TEXT_INCOMPATIBLE_WITH_REQUEST"
 
         # Confirm new_text exists and is a string
         if new_text and isinstance(new_text, str):
             self.output_queue += new_text
-            current_output = self.output_queue.strip()  # Strip whitespace for comparison
+            current_output = (
+                self.output_queue.strip()
+            )  # Strip whitespace for comparison
 
             # If the new text is the error message, show a message box
             if current_output == error_message:
                 self.history_manager.clear_pending_inline_history()
-                self.show_message_signal.emit('Error', 'The text is incompatible with the requested change.')
+                self.show_message_signal.emit(
+                    "Error", "The text is incompatible with the requested change."
+                )
                 return
 
             # Check if we're building up to the error message (to prevent partial pasting)
             if len(current_output) <= len(error_message):
-                clean_current = ''.join(current_output.split())
-                clean_error = ''.join(error_message.split())
-                if clean_current == clean_error[:len(clean_current)]:
+                clean_current = "".join(current_output.split())
+                clean_error = "".join(error_message.split())
+                if clean_current == clean_error[: len(clean_current)]:
                     return
 
-            logging.debug('Processing output text')
+            logging.debug("Processing output text")
             try:
                 # For Summary and Key Points, show in response window
-                if hasattr(self, 'current_response_window'):
+                if hasattr(self, "current_response_window"):
                     self.current_response_window.append_text(new_text)
-                    
+
                     # If this is the initial response, add it to chat history
-                    if len(self.current_response_window.chat_history) == 1:  # Only original text exists
-                        self.current_response_window.chat_history.append({
-                            "role": "assistant",
-                            "content": self.output_queue.rstrip('\n')
-                        })
+                    if (
+                        len(self.current_response_window.chat_history) == 1
+                    ):  # Only original text exists
+                        self.current_response_window.chat_history.append(
+                            {
+                                "role": "assistant",
+                                "content": self.output_queue.rstrip("\n"),
+                            }
+                        )
                 else:
                     # For other options, use the original clipboard-based replacement
                     clipboard_backup = pyperclip.paste()
-                    cleaned_text = self.output_queue.rstrip('\n')
+                    cleaned_text = self.output_queue.rstrip("\n")
                     pyperclip.copy(cleaned_text)
-                    
+
                     kbrd = pykeyboard.Controller()
+
                     def press_ctrl_v():
                         kbrd.press(pykeyboard.Key.ctrl.value)
-                        kbrd.press('v')
-                        kbrd.release('v')
+                        kbrd.press("v")
+                        kbrd.release("v")
                         kbrd.release(pykeyboard.Key.ctrl.value)
 
                     press_ctrl_v()
@@ -871,27 +939,27 @@ class WritingToolApp(QtWidgets.QApplication):
                     pyperclip.copy(clipboard_backup)
                     self.history_manager.consume_pending_inline_history(cleaned_text)
 
-                if not hasattr(self, 'current_response_window'):
+                if not hasattr(self, "current_response_window"):
                     self.output_queue = ""
 
             except Exception as e:
-                logging.error(f'Error processing output: {e}')
+                logging.error(f"Error processing output: {e}")
                 self.history_manager.clear_pending_inline_history()
         else:
-            logging.debug('No new text to process')
+            logging.debug("No new text to process")
 
     def create_tray_icon(self):
         """
         Create the system tray icon for the application.
         """
         if self.tray_icon:
-            logging.debug('Tray icon already exists')
+            logging.debug("Tray icon already exists")
             return
 
-        logging.debug('Creating system tray icon')
-        icon_path = os.path.join(os.path.dirname(sys.argv[0]), 'icons', 'app_icon.png')
+        logging.debug("Creating system tray icon")
+        icon_path = os.path.join(os.path.dirname(sys.argv[0]), "icons", "app_icon.png")
         if not os.path.exists(icon_path):
-            logging.warning(f'Tray icon not found at {icon_path}')
+            logging.warning(f"Tray icon not found at {icon_path}")
             # Use a default icon if not found
             self.tray_icon = QtWidgets.QSystemTrayIcon(self)
         else:
@@ -903,7 +971,7 @@ class WritingToolApp(QtWidgets.QApplication):
 
         self.update_tray_menu()
         self.tray_icon.show()
-        logging.debug('Tray icon displayed')
+        logging.debug("Tray icon displayed")
 
     def update_tray_menu(self):
         """
@@ -916,31 +984,33 @@ class WritingToolApp(QtWidgets.QApplication):
         self.apply_dark_mode_styles(self.tray_menu)
 
         # History menu item
-        history_action = self.tray_menu.addAction(self._('History'))
+        history_action = self.tray_menu.addAction(self._("History"))
         history_action.triggered.connect(self.history_manager.show_window)
 
         # Settings menu item
-        settings_action = self.tray_menu.addAction(self._('Settings'))
+        settings_action = self.tray_menu.addAction(self._("Settings"))
         settings_action.triggered.connect(self.show_settings)
 
-        # Pause/Resume toggle action 
-        self.toggle_action = self.tray_menu.addAction(self._('Resume') if self.paused else self._('Pause'))
+        # Pause/Resume toggle action
+        self.toggle_action = self.tray_menu.addAction(
+            self._("Resume") if self.paused else self._("Pause")
+        )
         self.toggle_action.triggered.connect(self.toggle_paused)
 
         # About menu item
-        about_action = self.tray_menu.addAction(self._('About'))
+        about_action = self.tray_menu.addAction(self._("About"))
         about_action.triggered.connect(self.show_about)
 
         # Exit menu item
-        exit_action = self.tray_menu.addAction(self._('Exit'))
+        exit_action = self.tray_menu.addAction(self._("Exit"))
         exit_action.triggered.connect(self.exit_app)
-        
+
     def toggle_paused(self):
         """Toggle the paused state of the application."""
-        logging.debug('Toggle paused state')
+        logging.debug("Toggle paused state")
         self.paused = not self.paused
-        self.toggle_action.setText(self._('Resume') if self.paused else self._('Pause'))
-        logging.debug('App is paused' if self.paused else 'App is resumed')
+        self.toggle_action.setText(self._("Resume") if self.paused else self._("Pause"))
+        logging.debug("App is paused" if self.paused else "App is resumed")
 
     @staticmethod
     def apply_dark_mode_styles(menu):
@@ -951,18 +1021,25 @@ class WritingToolApp(QtWidgets.QApplication):
         palette = menu.palette()
 
         if is_dark_mode:
-            logging.debug('Tray icon dark')
+            logging.debug("Tray icon dark")
             # Dark mode colors
-            palette.setColor(QtGui.QPalette.Window, QtGui.QColor("#2d2d2d"))  # Dark background
-            palette.setColor(QtGui.QPalette.WindowText, QtGui.QColor("#ffffff"))  # White text
+            palette.setColor(
+                QtGui.QPalette.Window, QtGui.QColor("#2d2d2d")
+            )  # Dark background
+            palette.setColor(
+                QtGui.QPalette.WindowText, QtGui.QColor("#ffffff")
+            )  # White text
         else:
-            logging.debug('Tray icon light')
+            logging.debug("Tray icon light")
             # Light mode colors
-            palette.setColor(QtGui.QPalette.Window, QtGui.QColor("#ffffff"))  # Light background
-            palette.setColor(QtGui.QPalette.WindowText, QtGui.QColor("#000000"))  # Black text
+            palette.setColor(
+                QtGui.QPalette.Window, QtGui.QColor("#ffffff")
+            )  # Light background
+            palette.setColor(
+                QtGui.QPalette.WindowText, QtGui.QColor("#000000")
+            )  # Black text
 
         menu.setPalette(palette)
-
 
     """
     The function below (process_followup_question) processes follow-up questions in the chat interface for Summary, Key Points, and Table operations.
@@ -1009,33 +1086,32 @@ class WritingToolApp(QtWidgets.QApplication):
         """
         Process a follow-up question in the chat window.
         """
-        logging.debug(f'Processing follow-up question: {question}')
-        
+        logging.debug(f"Processing follow-up question: {question}")
+
         def process_thread():
-            logging.debug('Starting follow-up processing thread')
+            logging.debug("Starting follow-up processing thread")
             try:
                 if not response_window.chat_history:
                     logging.error("No chat history found")
-                    self.show_message_signal.emit('Error', 'Chat history not found')
+                    self.show_message_signal.emit("Error", "Chat history not found")
                     return
 
                 # Add current question to chat history
-                response_window.chat_history.append({
-                    "role": "user",
-                    "content": question
-                })
-                history_entry_id = getattr(response_window, 'history_entry_id', None)
+                response_window.chat_history.append(
+                    {"role": "user", "content": question}
+                )
+                history_entry_id = getattr(response_window, "history_entry_id", None)
                 if history_entry_id:
-                    self.history_manager.append_turn(history_entry_id, 'user', question)
-                
+                    self.history_manager.append_turn(history_entry_id, "user", question)
+
                 # Get chat history
                 history = response_window.chat_history.copy()
-                
+
                 # System instruction based on original option
                 system_instruction = "You are a helpful AI assistant. Provide clear and direct responses, maintaining the same format and style as your previous responses. If appropriate, use Markdown formatting to make your response more readable."
-                
-                logging.debug('Sending request to AI provider')
-                
+
+                logging.debug("Sending request to AI provider")
+
                 # Format conversation differently based on provider
                 if isinstance(self.current_provider, GeminiProvider):
                     # Gemini takes the system instruction via its config object,
@@ -1043,12 +1119,12 @@ class WritingToolApp(QtWidgets.QApplication):
                     # (user/assistant turns); GeminiProvider handles role mapping
                     # and drops any "system" entries internally.
                     response_text = self.current_provider.get_response(
-                        system_instruction,
-                        history,
-                        return_response=True
+                        system_instruction, history, return_response=True
                     )
 
-                elif isinstance(self.current_provider, (OllamaProvider, OllamaCloudProvider)):
+                elif isinstance(
+                    self.current_provider, (OllamaProvider, OllamaCloudProvider)
+                ):
                     # For both Ollama variants (local server and Ollama Cloud),
                     # prepare messages with system instruction + history. The
                     # two providers share the same OpenAI-style message-array
@@ -1058,16 +1134,13 @@ class WritingToolApp(QtWidgets.QApplication):
                     messages = [{"role": "system", "content": system_instruction}]
 
                     for msg in history:
-                        messages.append({
-                            "role": msg["role"],
-                            "content": msg["content"]
-                        })
+                        messages.append(
+                            {"role": msg["role"], "content": msg["content"]}
+                        )
 
                     # Get response from Ollama / Ollama Cloud
                     response_text = self.current_provider.get_response(
-                        system_instruction,
-                        messages,
-                        return_response=True
+                        system_instruction, messages, return_response=True
                     )
 
                 else:
@@ -1079,58 +1152,76 @@ class WritingToolApp(QtWidgets.QApplication):
                         # Convert 'assistant' role to 'assistant' for OpenAI
                         role = "assistant" if msg["role"] == "assistant" else "user"
                         messages.append({"role": role, "content": msg["content"]})
-                    
+
                     # Get response by passing the full messages array
                     response_text = self.current_provider.get_response(
                         system_instruction,
                         messages,  # Pass messages array directly
-                        return_response=True
+                        return_response=True,
                     )
 
-                logging.debug(f'Got response of length: {len(response_text)}')
-                
+                logging.debug(f"Got response of length: {len(response_text)}")
+
+                # Cancelled (hotkey re-press) or timed-out requests return "" —
+                # don't pollute chat history with an empty assistant turn. The
+                # signal still fires: the window's handler re-enables the input
+                # and stops the thinking animation (it skips empty messages).
+                if not response_text.strip():
+                    self.followup_response_signal.emit("")
+                    return
+
                 # Add response to chat history
-                response_window.chat_history.append({
-                    "role": "assistant",
-                    "content": response_text
-                })
+                response_window.chat_history.append(
+                    {"role": "assistant", "content": response_text}
+                )
                 if history_entry_id and response_text:
-                    self.history_manager.append_turn(history_entry_id, 'assistant', response_text)
-                
+                    self.history_manager.append_turn(
+                        history_entry_id, "assistant", response_text
+                    )
+
                 # Emit response via signal
                 self.followup_response_signal.emit(response_text)
 
             except Exception as e:
-                logging.error(f'Error processing follow-up question: {e}', exc_info=True)
+                logging.error(
+                    f"Error processing follow-up question: {e}", exc_info=True
+                )
 
                 if "Resource has been exhausted" in str(e):
-                    self.show_message_signal.emit('Error - Rate Limit Hit', 'Whoops! You\'ve hit the per-minute rate limit of the Gemini API. Please try again in a few moments.\n\nIf this happens often, simply switch to a Gemini model with a higher usage limit in Settings.')
-                    self.followup_response_signal.emit("Sorry, an error occurred while processing your question.")
+                    self.show_message_signal.emit(
+                        "Error - Rate Limit Hit",
+                        "Whoops! You've hit the per-minute rate limit of the Gemini API. Please try again in a few moments.\n\nIf this happens often, simply switch to a Gemini model with a higher usage limit in Settings.",
+                    )
+                    self.followup_response_signal.emit(
+                        "Sorry, an error occurred while processing your question."
+                    )
                 else:
-                    self.show_message_signal.emit('Error', f'An error occurred: {e}')
-                    self.followup_response_signal.emit("Sorry, an error occurred while processing your question.")
+                    self.show_message_signal.emit("Error", f"An error occurred: {e}")
+                    self.followup_response_signal.emit(
+                        "Sorry, an error occurred while processing your question."
+                    )
 
         # Start the thread
         threading.Thread(target=process_thread, daemon=True).start()
 
     def show_settings(self, providers_only=False):
-
         """
         Show the settings window.
         """
-        logging.debug('Showing settings window')
+        logging.debug("Showing settings window")
         # Always create a new settings window to handle providers_only correctly
-        self.settings_window = ui.SettingsWindow.SettingsWindow(self, providers_only=providers_only)
+        self.settings_window = ui.SettingsWindow.SettingsWindow(
+            self, providers_only=providers_only
+        )
         self.settings_window.close_signal.connect(self.exit_app)
         self.settings_window.retranslate_ui()
         self.settings_window.show()
-
 
     def show_about(self):
         """
         Show the about window.
         """
-        logging.debug('Showing about window')
+        logging.debug("Showing about window")
         if not self.about_window:
             self.about_window = ui.AboutWindow.AboutWindow()
         self.about_window.show()
@@ -1139,7 +1230,9 @@ class WritingToolApp(QtWidgets.QApplication):
         """
         Listener for Ctrl+C to exit the app.
         """
-        signal.signal(signal.SIGINT, lambda signum, frame: self.handle_sigint(signum, frame))
+        signal.signal(
+            signal.SIGINT, lambda signum, frame: self.handle_sigint(signum, frame)
+        )
         # This empty timer is needed to make sure that the sigint handler gets checked inside the main loop:
         # without it, the sigint handle would trigger only when an event is triggered, either by a hotkey combination
         # or by another GUI event like spawning a new window. With this we trigger it every 100ms with an empy lambda
@@ -1147,6 +1240,7 @@ class WritingToolApp(QtWidgets.QApplication):
         self.ctrl_c_timer = QtCore.QTimer()
         self.ctrl_c_timer.start(100)
         self.ctrl_c_timer.timeout.connect(lambda: None)
+
     def handle_sigint(self, signum, frame):
         """
         Handle the SIGINT signal (Ctrl+C) to exit the app gracefully.
@@ -1158,8 +1252,8 @@ class WritingToolApp(QtWidgets.QApplication):
         """
         Exit the application.
         """
-        logging.debug('Stopping the listener')
+        logging.debug("Stopping the listener")
         if self.hotkey_listener is not None:
             self.hotkey_listener.stop()
-        logging.debug('Exiting application')
+        logging.debug("Exiting application")
         self.quit()
