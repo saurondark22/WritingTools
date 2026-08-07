@@ -1,0 +1,45 @@
+name: Build Windows
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: Windows_and_Linux
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Build with PyInstaller
+        run: python pyinstaller-build-script.py
+
+      - name: Package app folder
+        shell: bash
+        run: |
+          STAGE=../release-staging
+          rm -rf "$STAGE"
+          mkdir -p "$STAGE"
+          cp -r "dist/Writing Tools" "$STAGE/"
+          cp -r icons locales "$STAGE/"
+          cp background.png background_dark.png background_popup.png background_popup_dark.png Latest_Version_for_Update_Check.txt options.json "$STAGE/"
+          cd "$STAGE"
+          python -m zipfile -c ../WritingTools-Windows.zip . -m
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: WritingTools-Windows
+          path: Windows_and_Linux/WritingTools-Windows.zip
