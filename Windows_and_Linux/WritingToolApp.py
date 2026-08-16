@@ -9,6 +9,7 @@ import time
 
 import darkdetect
 import pyperclip
+import _wayland_io
 import ui.AboutWindow
 import ui.CustomPopupWindow
 import ui.OnboardingWindow
@@ -644,43 +645,77 @@ class WritingToolApp(QtWidgets.QApplication):
         pressed the hotkey without actually selecting anything, which
         `process_option_thread` reports as a normal error.
         """
+        wayland = _wayland_io.is_wayland_active()
+
         try:
-            clipboard_backup = pyperclip.paste()
+            clipboard_backup = (
+                _wayland_io.paste_text() if wayland else pyperclip.paste()
+            )
         except Exception:
             clipboard_backup = ""
 
-        self.clear_clipboard()
+        if wayland:
+            _wayland_io.clear_clipboard()
+            # Let the clear propagate before injecting Ctrl+C, so the poll's
+            # "changed from backup" check doesn't race with the clear.
+            time.sleep(0.1)
+            _wayland_io.inject_ctrl_c()
+        else:
+            self.clear_clipboard()
 
-        kbrd = pykeyboard.Controller()
-        try:
-            kbrd.press(pykeyboard.Key.ctrl.value)
-            kbrd.press("c")
-            kbrd.release("c")
-            kbrd.release(pykeyboard.Key.ctrl.value)
-        except Exception as e:
-            logging.error(f"Error simulating Ctrl+C: {e}")
+            kbrd = pykeyboard.Controller()
+            try:
+                kbrd.press(pykeyboard.Key.ctrl.value)
+                kbrd.press("c")
+                kbrd.release("c")
+                kbrd.release(pykeyboard.Key.ctrl.value)
+            except Exception as e:
+                logging.error(f"Error simulating Ctrl+C: {e}")
 
         def _poll_clipboard():
             # Lock so concurrent hotkey presses don't trample each other's
             # in-flight captures.
             with self._capture_lock:
                 text = ""
+                captured = False
+                # Give the injected Ctrl+C time to reach the focused app and
+                # populate the clipboard before the first read. ydotool ->
+                # ydotoold -> uinput -> KWin -> app -> wl-clipboard is not
+                # instant.
+                time.sleep(0.2)
                 try:
                     deadline = time.time() + 2.0
                     while time.time() < deadline:
                         try:
-                            text = pyperclip.paste() or ""
+                            if wayland:
+                                text = _wayland_io.paste_text() or ""
+                            else:
+                                text = pyperclip.paste() or ""
                         except Exception as e:
                             logging.error(f"Error reading clipboard during poll: {e}")
                             text = ""
-                        if text:
-                            break
+                        # On Wayland the clipboard clear may be re-offered by
+                        # KDE Klipper, so a non-empty value may be the backup.
+                        # Accept the capture only when content actually changed.
+                        if wayland:
+                            if text and text != clipboard_backup:
+                                captured = True
+                                break
+                        else:
+                            if text:
+                                captured = True
+                                break
                         time.sleep(0.05)
+                    if not captured:
+                        text = ""
                     holder.text = text
                     logging.debug(f"Captured selected text (len={len(text)})")
                 finally:
                     try:
-                        pyperclip.copy(clipboard_backup)
+                        if wayland:
+                            _wayland_io.copy_text(clipboard_backup)
+                        else:
+                            pyperclip.copy(clipboard_backup)
                     except Exception as e:
                         logging.error(f"Error restoring clipboard: {e}")
                     holder.ready.set()
@@ -922,21 +957,58 @@ class WritingToolApp(QtWidgets.QApplication):
                         )
                 else:
                     # For other options, use the original clipboard-based replacement
-                    clipboard_backup = pyperclip.paste()
                     cleaned_text = self.output_queue.rstrip("\n")
-                    pyperclip.copy(cleaned_text)
+                    wayland = _wayland_io.is_wayland_active()
 
-                    kbrd = pykeyboard.Controller()
+                    if wayland:
+                        # Sequence: put AI text in clipboard, inject Ctrl+V into
+                        # the (hopefully still-focused) source app, then restore
+                        # the user's prior clipboard contents.
+                        clipboard_backup = _wayland_io.paste_text()
+                        _wayland_io.copy_text(cleaned_text)
 
-                    def press_ctrl_v():
-                        kbrd.press(pykeyboard.Key.ctrl.value)
-                        kbrd.press("v")
-                        kbrd.release("v")
-                        kbrd.release(pykeyboard.Key.ctrl.value)
+                        # Give KWin a moment to settle focus after the popup
+                        # closed; Wayland does NOT reliably refocus the source
+                        # the way X11/Windows do. Default 300ms on Wayland;
+                        # tunable via WT_PASTE_SETTLE_MS for slow compositors.
+                        try:
+                            settle_ms = int(os.environ.get("WT_PASTE_SETTLE_MS", "300"))
+                        except ValueError:
+                            settle_ms = 300
+                        time.sleep(settle_ms / 1000.0)
 
-                    press_ctrl_v()
-                    time.sleep(0.2)
-                    pyperclip.copy(clipboard_backup)
+                        _wayland_io.inject_ctrl_v()
+                        time.sleep(0.3)
+                        _wayland_io.copy_text(clipboard_backup)
+                    else:
+                        clipboard_backup = pyperclip.paste()
+                        pyperclip.copy(cleaned_text)
+
+                        # Let the compositor settle focus after the popup closed.
+                        # On Wayland (KWin) closing the popup does NOT reliably
+                        # refocus the source app the way X11/Windows do; a brief
+                        # settle here gives the WM a chance to restore focus to the
+                        # window that had it before the popup. Tunable via env var
+                        # WT_PASTE_SETTLE_MS so users on slow compositors can bump it.
+                        settle_ms = 0
+                        try:
+                            settle_ms = int(os.environ.get("WT_PASTE_SETTLE_MS", "0"))
+                        except ValueError:
+                            settle_ms = 0
+                        if settle_ms > 0:
+                            time.sleep(settle_ms / 1000.0)
+
+                        kbrd = pykeyboard.Controller()
+
+                        def press_ctrl_v():
+                            kbrd.press(pykeyboard.Key.ctrl.value)
+                            kbrd.press("v")
+                            kbrd.release("v")
+                            kbrd.release(pykeyboard.Key.ctrl.value)
+
+                        press_ctrl_v()
+                        time.sleep(0.2)
+                        pyperclip.copy(clipboard_backup)
                     self.history_manager.consume_pending_inline_history(cleaned_text)
 
                 if not hasattr(self, "current_response_window"):
