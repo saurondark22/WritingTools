@@ -781,18 +781,32 @@ class OllamaCloudProvider(AIProvider):
                 description="Select an Ollama Cloud model to use",
                 options=[
                     # Verified available models on Ollama Cloud (https://ollama.com/api/tags).
-                    # Model IDs use exact tags from the official catalog to avoid 404 errors.
-                    ("gemma4:31b", "gemma4:31b"),
-                    ("gemma3:12b", "gemma3:12b"),
-                    ("deepseek-v4-flash", "deepseek-v4-flash"),
-                    ("nemotron-3-nano:30b", "nemotron-3-nano:30b"),
-                    ("gpt-oss:20b", "gpt-oss:20b"),
+                    # (display label, exact model ID from the official catalog).
+                    ("Gemma 4 (31B, very fast)", "gemma4:31b"),
+                    ("GLM 5.3 Flash (18B active)", "glm-5.3-flash"),
+                    ("DeepSeek V4 Flash (13B active, 0731)", "deepseek-v4-flash:0731"),
+                    ("Nemotron 3 Nano (30B)", "nemotron-3-nano:30b"),
                 ],
                 allow_custom=True,
                 # The cloud catalog evolves quickly; the Custom escape hatch
                 # keeps the provider useful as new models land without
                 # requiring a code update.
-                custom_placeholder="e.g., gemma4:31b (without -cloud prefix)",
+                custom_placeholder="e.g., gemma4:31b",
+            ),
+            DropdownSetting(
+                name="reasoning_effort",
+                display_name="Reasoning Effort",
+                # "low" is the lowest string level the Ollama API accepts
+                # (low/medium/high/max); "off" maps to think=False. Models
+                # without thinking support ignore it harmlessly.
+                default_value="off",
+                description="How much thinking the model does before answering",
+                options=[
+                    ("Off (fastest)", "off"),
+                    ("Low", "low"),
+                    ("Medium", "medium"),
+                    ("High", "high"),
+                ],
             ),
             # num_ctx default 4096: matches the local Ollama provider.
             TextSetting(
@@ -881,12 +895,20 @@ class OllamaCloudProvider(AIProvider):
                 {"role": "user", "content": prompt},
             ]
 
-        # GPT-OSS only accepts string think levels; everything else accepts
-        # a bool. "low" is the closest to "off" GPT-OSS offers, and matches
-        # the local provider's behaviour exactly. (No public Ollama Cloud
-        # model is named gpt-oss at the moment, but we keep the rule for
-        # forward-compatibility in case one shows up.)
-        think_value = "low" if "gpt-oss" in (self.api_model or "").lower() else False
+        # Reasoning effort: "off" maps to think=False. Most models support
+        # the boolean off (per models.dev), but thinking-only models — where
+        # reasoning is always on (e.g. glm-5.3-flash, only low/high/max) —
+        # fall back to "low", the lowest level they offer.
+        _THINKING_ONLY_MODELS = ("glm-5.3-flash",)
+        effort = (getattr(self, "reasoning_effort", None) or "off").lower()
+        model = (self.api_model or "").lower()
+        if effort == "off":
+            if any(t in model for t in _THINKING_ONLY_MODELS):
+                think_value = "low"
+            else:
+                think_value = False
+        else:
+            think_value = effort
 
         options = {
             "num_ctx": self._safe_int(getattr(self, "num_ctx", None), 4096),
