@@ -60,8 +60,8 @@ def obfuscate_api_key(key: str) -> str:
     """
     if not key or key.startswith(_OBFUSCATION_PREFIX):
         return key  # Already obfuscated or empty
-    xored = bytes([b ^ _XOR_KEY for b in key.encode('utf-8')])
-    return _OBFUSCATION_PREFIX + base64.b64encode(xored).decode('ascii')
+    xored = bytes([b ^ _XOR_KEY for b in key.encode("utf-8")])
+    return _OBFUSCATION_PREFIX + base64.b64encode(xored).decode("ascii")
 
 
 def deobfuscate_api_key(obfuscated: str) -> str:
@@ -71,16 +71,23 @@ def deobfuscate_api_key(obfuscated: str) -> str:
     """
     if not obfuscated or not obfuscated.startswith(_OBFUSCATION_PREFIX):
         return obfuscated  # Not obfuscated, return as-is
-    encoded = obfuscated[len(_OBFUSCATION_PREFIX):]
+    encoded = obfuscated[len(_OBFUSCATION_PREFIX) :]
     xored = base64.b64decode(encoded)
-    return bytes([b ^ _XOR_KEY for b in xored]).decode('utf-8')
+    return bytes([b ^ _XOR_KEY for b in xored]).decode("utf-8")
 
 
 class AIProviderSetting(ABC):
     """
     Abstract base class for a provider setting (e.g., API key, model selection).
     """
-    def __init__(self, name: str, display_name: str = None, default_value: str = None, description: str = None):
+
+    def __init__(
+        self,
+        name: str,
+        display_name: str = None,
+        default_value: str = None,
+        description: str = None,
+    ):
         self.name = name
         self.display_name = display_name if display_name else name
         self.default_value = default_value if default_value else ""
@@ -106,7 +113,14 @@ class TextSetting(AIProviderSetting):
     """
     A text-based setting (for API keys, URLs, etc.).
     """
-    def __init__(self, name: str, display_name: str = None, default_value: str = None, description: str = None):
+
+    def __init__(
+        self,
+        name: str,
+        display_name: str = None,
+        default_value: str = None,
+        description: str = None,
+    ):
         super().__init__(name, display_name, default_value, description)
         self.internal_value = default_value
         self.input = None
@@ -114,15 +128,17 @@ class TextSetting(AIProviderSetting):
     def render_to_layout(self, layout: QVBoxLayout):
         row_layout = QtWidgets.QHBoxLayout()
         label = QtWidgets.QLabel(self.display_name)
-        label.setStyleSheet(f"font-size: 16px; color: {'#ffffff' if colorMode=='dark' else '#333333'};")
+        label.setStyleSheet(
+            f"font-size: 16px; color: {'#ffffff' if colorMode == 'dark' else '#333333'};"
+        )
         row_layout.addWidget(label)
         self.input = QtWidgets.QLineEdit(self.internal_value)
         self.input.setStyleSheet(f"""
             font-size: 16px;
             padding: 5px;
-            background-color: {'#444' if colorMode=='dark' else 'white'};
-            color: {'#ffffff' if colorMode=='dark' else '#000000'};
-            border: 1px solid {'#666' if colorMode=='dark' else '#ccc'};
+            background-color: {"#444" if colorMode == "dark" else "white"};
+            color: {"#ffffff" if colorMode == "dark" else "#000000"};
+            border: 1px solid {"#666" if colorMode == "dark" else "#ccc"};
         """)
         self.input.setPlaceholderText(self.description)
         row_layout.addWidget(self.input)
@@ -143,12 +159,20 @@ class DropdownSetting(AIProviderSetting):
     When allow_custom=True, users can select "Custom" from the dropdown and enter any value.
     If the loaded config value doesn't match any preset option, "Custom" is auto-selected.
     """
+
     # Sentinel value used internally to identify the "Custom" dropdown option
     _CUSTOM_SENTINEL = "__custom__"
 
-    def __init__(self, name: str, display_name: str = None, default_value: str = None,
-                 description: str = None, options: list = None, allow_custom: bool = False,
-                 custom_placeholder: str = "Enter custom value"):
+    def __init__(
+        self,
+        name: str,
+        display_name: str = None,
+        default_value: str = None,
+        description: str = None,
+        options: list = None,
+        allow_custom: bool = False,
+        custom_placeholder: str = "Enter custom value",
+    ):
         super().__init__(name, display_name, default_value, description)
         self.options = options if options else []
         self.internal_value = default_value
@@ -161,15 +185,17 @@ class DropdownSetting(AIProviderSetting):
     def render_to_layout(self, layout: QVBoxLayout):
         row_layout = QtWidgets.QHBoxLayout()
         label = QtWidgets.QLabel(self.display_name)
-        label.setStyleSheet(f"font-size: 16px; color: {'#ffffff' if colorMode=='dark' else '#333333'};")
+        label.setStyleSheet(
+            f"font-size: 16px; color: {'#ffffff' if colorMode == 'dark' else '#333333'};"
+        )
         row_layout.addWidget(label)
         self.dropdown = QtWidgets.QComboBox()
         self.dropdown.setStyleSheet(f"""
             font-size: 16px;
             padding: 5px;
-            background-color: {'#444' if colorMode=='dark' else 'white'};
-            color: {'#ffffff' if colorMode=='dark' else '#000000'};
-            border: 1px solid {'#666' if colorMode=='dark' else '#ccc'};
+            background-color: {"#444" if colorMode == "dark" else "white"};
+            color: {"#ffffff" if colorMode == "dark" else "#000000"};
+            border: 1px solid {"#666" if colorMode == "dark" else "#ccc"};
         """)
 
         # Add preset options
@@ -205,13 +231,16 @@ class DropdownSetting(AIProviderSetting):
             self.custom_input.setStyleSheet(f"""
                 font-size: 16px;
                 padding: 5px;
-                background-color: {'#444' if colorMode=='dark' else 'white'};
-                color: {'#ffffff' if colorMode=='dark' else '#000000'};
-                border: 1px solid {'#666' if colorMode=='dark' else '#ccc'};
+                background-color: {"#444" if colorMode == "dark" else "white"};
+                color: {"#ffffff" if colorMode == "dark" else "#000000"};
+                border: 1px solid {"#666" if colorMode == "dark" else "#ccc"};
             """)
 
             # If current value is custom (not in presets), populate the input
-            if self.dropdown.currentData() == self._CUSTOM_SENTINEL and self.internal_value:
+            if (
+                self.dropdown.currentData() == self._CUSTOM_SENTINEL
+                and self.internal_value
+            ):
                 self.custom_input.setText(self.internal_value)
 
             custom_row_layout.addWidget(self.custom_input)
@@ -248,20 +277,26 @@ class DropdownSetting(AIProviderSetting):
 class AIProvider(ABC):
     """
     Abstract base class for AI providers.
-    
+
     All providers must implement:
       • get_response(system_instruction, prompt) -> str
       • after_load() to create their client or model instance
       • before_load() to cleanup any existing client
       • cancel() to cancel an ongoing request
     """
-    def __init__(self, app, provider_name: str, settings: List[AIProviderSetting],
-                 description: str = "An unfinished AI provider!",
-                 logo: str = "generic",
-                 button_text: str = "Go to URL",
-                 button_action: callable = None,
-                 secondary_button_text: str = None,
-                 secondary_button_action: callable = None):
+
+    def __init__(
+        self,
+        app,
+        provider_name: str,
+        settings: List[AIProviderSetting],
+        description: str = "An unfinished AI provider!",
+        logo: str = "generic",
+        button_text: str = "Go to URL",
+        button_action: callable = None,
+        secondary_button_text: str = None,
+        secondary_button_action: callable = None,
+    ):
         self.provider_name = provider_name
         self.settings = settings
         self.app = app
@@ -348,10 +383,18 @@ class GeminiProvider(AIProvider):
     # Disable safety filtering across all categories (best-effort; some models
     # may still soft-refuse). Defined once, reused per request.
     _SAFETY_SETTINGS = [
-        genai_types.SafetySetting(category="HARM_CATEGORY_HARASSMENT", threshold="BLOCK_NONE"),
-        genai_types.SafetySetting(category="HARM_CATEGORY_HATE_SPEECH", threshold="BLOCK_NONE"),
-        genai_types.SafetySetting(category="HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold="BLOCK_NONE"),
-        genai_types.SafetySetting(category="HARM_CATEGORY_DANGEROUS_CONTENT", threshold="BLOCK_NONE"),
+        genai_types.SafetySetting(
+            category="HARM_CATEGORY_HARASSMENT", threshold="BLOCK_NONE"
+        ),
+        genai_types.SafetySetting(
+            category="HARM_CATEGORY_HATE_SPEECH", threshold="BLOCK_NONE"
+        ),
+        genai_types.SafetySetting(
+            category="HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold="BLOCK_NONE"
+        ),
+        genai_types.SafetySetting(
+            category="HARM_CATEGORY_DANGEROUS_CONTENT", threshold="BLOCK_NONE"
+        ),
     ]
 
     def __init__(self, app):
@@ -359,7 +402,11 @@ class GeminiProvider(AIProvider):
         self.client = None
 
         settings = [
-            TextSetting(name="api_key", display_name="API Key", description="Paste your Gemini API key here"),
+            TextSetting(
+                name="api_key",
+                display_name="API Key",
+                description="Paste your Gemini API key here",
+            ),
             DropdownSetting(
                 name="model_name",
                 display_name="Model",
@@ -370,26 +417,38 @@ class GeminiProvider(AIProvider):
                     # points to Gemini 3 Flash Preview — fast (~1–2s) and high
                     # quality. Capped at 20 free requests/day per the model's free
                     # tier.
-                    ("⭐ Gemini Flash Latest (very fast | only 20 free uses/day)", "gemini-flash-latest"),
+                    (
+                        "⭐ Gemini Flash Latest (very fast | only 20 free uses/day)",
+                        "gemini-flash-latest",
+                    ),
                     # Gemma 4 models are unlimited on the free tier but noticeably
                     # slower (8–15s typical) since they run on different
                     # infrastructure.
                     ("Gemma 4 31B (slow | unlimited free use)", "gemma-4-31b-it"),
-                    ("Gemma 4 26B A4B (slow | unlimited free use)", "gemma-4-26b-a4b-it"),
+                    (
+                        "Gemma 4 26B A4B (slow | unlimited free use)",
+                        "gemma-4-26b-a4b-it",
+                    ),
                 ],
                 allow_custom=True,
-                custom_placeholder="e.g., gemini-3.1-pro-preview"
-            )
+                custom_placeholder="e.g., gemini-3.1-pro-preview",
+            ),
         ]
-        super().__init__(app, "Gemini (Recommended)", settings,
+        super().__init__(
+            app,
+            "Gemini (Recommended)",
+            settings,
             "• Google's Gemini is a powerful AI model available for free!\n"
             "• An API key is required to connect to Gemini on your behalf.\n"
             "• Click the button below to get your API key.",
             "gemini",
             "Get API Key",
-            lambda: webbrowser.open("https://aistudio.google.com/app/apikey"))
+            lambda: webbrowser.open("https://aistudio.google.com/app/apikey"),
+        )
 
-    def _build_config(self, system_instruction: str) -> "genai_types.GenerateContentConfig":
+    def _build_config(
+        self, system_instruction: str
+    ) -> "genai_types.GenerateContentConfig":
         """
         Build a per-call GenerateContentConfig.
 
@@ -416,7 +475,9 @@ class GeminiProvider(AIProvider):
             "max_output_tokens": 1000,
         }
         if not is_gemma:
-            kwargs["thinking_config"] = genai_types.ThinkingConfig(thinking_level="minimal")
+            kwargs["thinking_config"] = genai_types.ThinkingConfig(
+                thinking_level="minimal"
+            )
         return genai_types.GenerateContentConfig(**kwargs)
 
     @staticmethod
@@ -435,10 +496,16 @@ class GeminiProvider(AIProvider):
                 continue
             text = m.get("content", "")
             gemini_role = "model" if role == "assistant" else "user"
-            contents.append(genai_types.Content(role=gemini_role, parts=[genai_types.Part(text=text)]))
+            contents.append(
+                genai_types.Content(
+                    role=gemini_role, parts=[genai_types.Part(text=text)]
+                )
+            )
         return contents
 
-    def get_response(self, system_instruction: str, prompt, return_response: bool = False) -> str:
+    def get_response(
+        self, system_instruction: str, prompt, return_response: bool = False
+    ) -> str:
         """
         Generate content using Gemini.
 
@@ -452,7 +519,11 @@ class GeminiProvider(AIProvider):
         self.close_requested = False
 
         try:
-            contents = self._messages_to_contents(prompt) if isinstance(prompt, list) else prompt
+            contents = (
+                self._messages_to_contents(prompt)
+                if isinstance(prompt, list)
+                else prompt
+            )
 
             response = self.client.models.generate_content(
                 model=self.model_name,
@@ -460,16 +531,18 @@ class GeminiProvider(AIProvider):
                 config=self._build_config(system_instruction),
             )
 
-            response_text = (response.text or "").rstrip('\n')
+            response_text = (response.text or "").rstrip("\n")
 
-            if not return_response and not hasattr(self.app, 'current_response_window'):
+            if not return_response and not hasattr(self.app, "current_response_window"):
                 self.app.output_ready_signal.emit(response_text)
                 self.app.replace_text(True)
                 return ""
             return response_text
         except Exception as e:
             logging.error(f"Error processing Gemini response: {e}")
-            self.app.output_ready_signal.emit("An error occurred while processing the response.")
+            self.app.output_ready_signal.emit(
+                "An error occurred while processing the response."
+            )
             return ""
         finally:
             self.close_requested = False
@@ -479,9 +552,9 @@ class GeminiProvider(AIProvider):
         Load configuration, deobfuscating the API key if needed.
         """
         # Deobfuscate API key before loading
-        if 'api_key' in config:
+        if "api_key" in config:
             config = config.copy()  # Don't modify the original
-            config['api_key'] = deobfuscate_api_key(config['api_key'])
+            config["api_key"] = deobfuscate_api_key(config["api_key"])
         super().load_config(config)
 
     def save_config(self):
@@ -492,7 +565,7 @@ class GeminiProvider(AIProvider):
         for setting in self.settings:
             value = setting.get_value()
             # Obfuscate API key before saving
-            if setting.name == 'api_key':
+            if setting.name == "api_key":
                 value = obfuscate_api_key(value)
             config[setting.name] = value
         self.app.config["providers"][self.provider_name] = config
@@ -516,30 +589,55 @@ class GeminiProvider(AIProvider):
 class OpenAICompatibleProvider(AIProvider):
     """
     Provider for OpenAI-compatible APIs.
-    
+
     Uses self.client.chat.completions.create() to obtain a response.
     Streaming is fully removed.
     """
+
     def __init__(self, app):
         self.close_requested = None
         self.client = None
 
         settings = [
-            TextSetting(name="api_key", display_name="API Key", description="API key for the OpenAI-compatible API."),
-            TextSetting("api_base", "API Base URL", "https://api.openai.com/v1", "E.g. https://api.openai.com/v1"),
-            TextSetting("api_organisation", "API Organisation", "", "Leave blank if not applicable."),
-            TextSetting("api_project", "API Project", "", "Leave blank if not applicable."),
+            TextSetting(
+                name="api_key",
+                display_name="API Key",
+                description="API key for the OpenAI-compatible API.",
+            ),
+            TextSetting(
+                "api_base",
+                "API Base URL",
+                "https://api.openai.com/v1",
+                "E.g. https://api.openai.com/v1",
+            ),
+            TextSetting(
+                "api_organisation",
+                "API Organisation",
+                "",
+                "Leave blank if not applicable.",
+            ),
+            TextSetting(
+                "api_project", "API Project", "", "Leave blank if not applicable."
+            ),
             TextSetting("api_model", "API Model", "gpt-4o-mini", "E.g. gpt-4o-mini"),
         ]
-        super().__init__(app, "OpenAI Compatible (For Experts)", settings,
+        super().__init__(
+            app,
+            "OpenAI Compatible (For Experts)",
+            settings,
             "• Connect to ANY OpenAI-compatible API (v1/chat/completions).\n"
             "• You must abide by the service's Terms of Service.",
-            "openai", "Get OpenAI API Key", lambda: webbrowser.open("https://platform.openai.com/account/api-keys"))
+            "openai",
+            "Get OpenAI API Key",
+            lambda: webbrowser.open("https://platform.openai.com/account/api-keys"),
+        )
 
-    def get_response(self, system_instruction: str, prompt: str | list, return_response: bool = False) -> str:
+    def get_response(
+        self, system_instruction: str, prompt: str | list, return_response: bool = False
+    ) -> str:
         """
         Send a chat request to the OpenAI-compatible API.
-        
+
         Always performs a non-streaming request.
         If prompt is not a list, builds a simple two-message conversation.
         Returns the response text if return_response is True,
@@ -552,19 +650,16 @@ class OpenAICompatibleProvider(AIProvider):
         else:
             messages = [
                 {"role": "system", "content": system_instruction},
-                {"role": "user", "content": prompt}
+                {"role": "user", "content": prompt},
             ]
 
         try:
             response = self.client.chat.completions.create(
-                model=self.api_model,
-                messages=messages,
-                temperature=0.5,
-                stream=False
+                model=self.api_model, messages=messages, temperature=0.5, stream=False
             )
             response_text = response.choices[0].message.content.strip()
 
-            if not return_response and not hasattr(self.app, 'current_response_window'):
+            if not return_response and not hasattr(self.app, "current_response_window"):
                 self.app.output_ready_signal.emit(response_text)
             return response_text
 
@@ -574,10 +669,12 @@ class OpenAICompatibleProvider(AIProvider):
             if "exceeded" in error_str or "rate limit" in error_str:
                 self.app.show_message_signal.emit(
                     "Rate Limit Hit",
-                    "It appears you have hit an API rate/usage limit. Please try again later or adjust your settings."
+                    "It appears you have hit an API rate/usage limit. Please try again later or adjust your settings.",
                 )
             else:
-                self.app.show_message_signal.emit("Error", f"An error occurred: {error_str}")
+                self.app.show_message_signal.emit(
+                    "Error", f"An error occurred: {error_str}"
+                )
             return ""
 
     def after_load(self):
@@ -585,7 +682,7 @@ class OpenAICompatibleProvider(AIProvider):
             api_key=self.api_key,
             base_url=self.api_base,
             organization=self.api_organisation,
-            project=self.api_project
+            project=self.api_project,
         )
 
     def before_load(self):
@@ -617,6 +714,7 @@ class OllamaCloudProvider(AIProvider):
       • https://ollama.com/signin (sign up + free key)
       • https://ollama.com/settings/keys (manage / regenerate keys)
     """
+
     # Hostname of the Ollama Cloud API. Exposed as a class-level constant
     # so tests and tools (e.g. the Settings UI) can reference it without
     # hard-coding the string in multiple places.
@@ -642,29 +740,55 @@ class OllamaCloudProvider(AIProvider):
                 description="Select an Ollama Cloud model to use",
                 options=[
                     # Verified available models on Ollama Cloud (https://ollama.com/api/tags).
-                    # Model IDs use exact tags from the official catalog to avoid 404 errors.
-                    ("gemma4:31b",                                      "gemma4:31b"),
-                    ("gemma3:12b",                                      "gemma3:12b"),
-                    ("deepseek-v4-flash",                               "deepseek-v4-flash"),
-                    ("nemotron-3-nano:30b",                             "nemotron-3-nano:30b"),
-                    ("gpt-oss:20b",                                     "gpt-oss:20b")
+                    # (display label, exact model ID from the official catalog).
+                    ("Gemma 4 (31B, very fast)", "gemma4:31b"),
+                    ("GLM 5.3 Flash (18B active)", "glm-5.3-flash"),
+                    ("DeepSeek V4 Flash (13B active, 0731)", "deepseek-v4-flash:0731"),
+                    ("Nemotron 3 Nano (30B)", "nemotron-3-nano:30b"),
                 ],
                 allow_custom=True,
                 # The cloud catalog evolves quickly; the Custom escape hatch
                 # keeps the provider useful as new models land without
                 # requiring a code update.
-                custom_placeholder="e.g., gemma4:31b (without -cloud prefix)",
+                custom_placeholder="e.g., gemma4:31b",
+            ),
+            DropdownSetting(
+                name="reasoning_effort",
+                display_name="Reasoning Effort",
+                # "low" is the lowest string level the Ollama API accepts
+                # (low/medium/high/max); "off" maps to think=False. Models
+                # without thinking support ignore it harmlessly.
+                default_value="off",
+                description="How much thinking the model does before answering",
+                options=[
+                    ("Off (fastest)", "off"),
+                    ("Low", "low"),
+                    ("Medium", "medium"),
+                    ("High", "high"),
+                ],
             ),
             # num_ctx default 4096: matches the local Ollama provider.
-            TextSetting("num_ctx", "Context window size (num_ctx)", "4096",
-                        "E.g. 4096. Larger = more memory, but supports longer inputs."),
+            TextSetting(
+                "num_ctx",
+                "Context window size (num_ctx)",
+                "4096",
+                "E.g. 4096. Larger = more memory, but supports longer inputs.",
+            ),
             # num_predict cap bounds latency on chatty cloud models.
-            TextSetting("num_predict", "Max output tokens (num_predict)", "1000",
-                        "E.g. 1000. Caps response length to bound latency."),
+            TextSetting(
+                "num_predict",
+                "Max output tokens (num_predict)",
+                "1000",
+                "E.g. 1000. Caps response length to bound latency.",
+            ),
             # 0.4 is a good writing-assistant default — deterministic enough
             # for proofreading, not robotic for rewrites. Range 0.0–1.0.
-            TextSetting("temperature", "Temperature", "0.4",
-                        "0.0 = deterministic, 1.0 = creative. 0.4 is a good writing-assistant default."),
+            TextSetting(
+                "temperature",
+                "Temperature",
+                "0.4",
+                "0.0 = deterministic, 1.0 = creative. 0.4 is a good writing-assistant default.",
+            ),
         ]
 
         super().__init__(
@@ -699,7 +823,9 @@ class OllamaCloudProvider(AIProvider):
         except (ValueError, TypeError):
             return default
 
-    def get_response(self, system_instruction: str, prompt, return_response: bool = False) -> str:
+    def get_response(
+        self, system_instruction: str, prompt, return_response: bool = False
+    ) -> str:
         """
         Send a chat request to Ollama Cloud.
 
@@ -719,15 +845,23 @@ class OllamaCloudProvider(AIProvider):
         else:
             messages = [
                 {"role": "system", "content": system_instruction},
-                {"role": "user", "content": prompt}
+                {"role": "user", "content": prompt},
             ]
 
-        # GPT-OSS only accepts string think levels; everything else accepts
-        # a bool. "low" is the closest to "off" GPT-OSS offers, and matches
-        # the local provider's behaviour exactly. (No public Ollama Cloud
-        # model is named gpt-oss at the moment, but we keep the rule for
-        # forward-compatibility in case one shows up.)
-        think_value = "low" if "gpt-oss" in (self.api_model or "").lower() else False
+        # Reasoning effort: "off" maps to think=False. Most models support
+        # the boolean off (per models.dev), but thinking-only models — where
+        # reasoning is always on (e.g. glm-5.3-flash, only low/high/max) —
+        # fall back to "low", the lowest level they offer.
+        _THINKING_ONLY_MODELS = ("glm-5.3-flash",)
+        effort = (getattr(self, "reasoning_effort", None) or "off").lower()
+        model = (self.api_model or "").lower()
+        if effort == "off":
+            if any(t in model for t in _THINKING_ONLY_MODELS):
+                think_value = "low"
+            else:
+                think_value = False
+        else:
+            think_value = effort
 
         options = {
             "num_ctx": self._safe_int(getattr(self, "num_ctx", None), 4096),
@@ -736,15 +870,17 @@ class OllamaCloudProvider(AIProvider):
         }
 
         try:
-            logging.debug(f"Ollama Cloud request: model={self.api_model}, options={options}")
+            logging.debug(
+                f"Ollama Cloud request: model={self.api_model}, options={options}"
+            )
             response = self.client.chat(
                 model=self.api_model,
                 messages=messages,
                 think=think_value,
                 options=options,
             )
-            response_text = response['message']['content'].strip()
-            if not return_response and not hasattr(self.app, 'current_response_window'):
+            response_text = response["message"]["content"].strip()
+            if not return_response and not hasattr(self.app, "current_response_window"):
                 self.app.output_ready_signal.emit(response_text)
             return response_text
         except Exception as e:
@@ -754,21 +890,31 @@ class OllamaCloudProvider(AIProvider):
             # generic message: free-tier / quota hits are the most common
             # cloud failure mode, and the user can fix them by waiting or
             # upgrading at ollama.com — not by editing local config.
-            if "401" in error_str or "unauthorized" in error_str.lower() or "invalid api key" in error_str.lower():
+            if (
+                "401" in error_str
+                or "unauthorized" in error_str.lower()
+                or "invalid api key" in error_str.lower()
+            ):
                 self.app.show_message_signal.emit(
                     "Invalid Ollama Cloud API Key",
                     "Your Ollama Cloud API key was rejected. "
                     "Open the API Key Dashboard (button above) to copy a valid key, "
-                    "then paste it here and save again."
+                    "then paste it here and save again.",
                 )
-            elif "402" in error_str or "quota" in error_str.lower() or "usage limit" in error_str.lower():
+            elif (
+                "402" in error_str
+                or "quota" in error_str.lower()
+                or "usage limit" in error_str.lower()
+            ):
                 self.app.show_message_signal.emit(
                     "Ollama Cloud Free Tier Limit",
                     "You've used up this week's free-tier quota on Ollama Cloud. "
-                    "It will reset on a rolling weekly basis, or you can upgrade your plan at ollama.com."
+                    "It will reset on a rolling weekly basis, or you can upgrade your plan at ollama.com.",
                 )
             else:
-                self.app.output_ready_signal.emit("An error occurred during Ollama Cloud chat.")
+                self.app.output_ready_signal.emit(
+                    "An error occurred during Ollama Cloud chat."
+                )
             return ""
 
     def after_load(self):
@@ -784,7 +930,7 @@ class OllamaCloudProvider(AIProvider):
         # happily build without one and only fail at request time. We
         # still build the client (so the rest of the provider's lifecycle
         # works) but tag it so we can short-circuit on send.
-        headers = {'Authorization': f'Bearer {self.api_key}'} if self.api_key else {}
+        headers = {"Authorization": f"Bearer {self.api_key}"} if self.api_key else {}
         self.client = OllamaClient(host=self.OLLAMA_CLOUD_HOST, headers=headers)
 
     def before_load(self):
@@ -797,9 +943,9 @@ class OllamaCloudProvider(AIProvider):
         from plaintext storage (or migrating in from a different machine)
         still gets a working key.
         """
-        if 'api_key' in config:
+        if "api_key" in config:
             config = config.copy()  # Don't mutate the caller's dict
-            config['api_key'] = deobfuscate_api_key(config['api_key'])
+            config["api_key"] = deobfuscate_api_key(config["api_key"])
         super().load_config(config)
 
     def save_config(self):
@@ -813,7 +959,7 @@ class OllamaCloudProvider(AIProvider):
         config = {}
         for setting in self.settings:
             value = setting.get_value()
-            if setting.name == 'api_key':
+            if setting.name == "api_key":
                 value = obfuscate_api_key(value)
             config[setting.name] = value
         self.app.config["providers"][self.provider_name] = config
@@ -843,28 +989,61 @@ class OllamaProvider(AIProvider):
 
     Reference: https://docs.ollama.com/capabilities/thinking
     """
+
     def __init__(self, app):
         self.close_requested = None
         self.client = None
         self.app = app
         settings = [
-            TextSetting("api_base", "API Base URL", "http://localhost:11434", "E.g. http://localhost:11434"),
+            TextSetting(
+                "api_base",
+                "API Base URL",
+                "http://localhost:11434",
+                "E.g. http://localhost:11434",
+            ),
             TextSetting("api_model", "API Model", "llama3.1:8b", "E.g. llama3.1:8b"),
-            TextSetting("keep_alive", "Time to keep the model loaded in memory in minutes", "5", "E.g. 5"),
+            TextSetting(
+                "keep_alive",
+                "Time to keep the model loaded in memory in minutes",
+                "5",
+                "E.g. 5",
+            ),
             # num_ctx default 4096: Ollama's default of 2048 is too small for our
             # system prompt + long user input, which used to cause silent truncation.
-            TextSetting("num_ctx", "Context window size (num_ctx)", "4096", "E.g. 4096. Larger = more memory, but supports longer inputs."),
+            TextSetting(
+                "num_ctx",
+                "Context window size (num_ctx)",
+                "4096",
+                "E.g. 4096. Larger = more memory, but supports longer inputs.",
+            ),
             # num_predict cap bounds latency and prevents runaway generation on local
             # models. Our responses (proofread/rewrite/summary) are short by design.
-            TextSetting("num_predict", "Max output tokens (num_predict)", "1000", "E.g. 1000. Caps response length to bound latency."),
+            TextSetting(
+                "num_predict",
+                "Max output tokens (num_predict)",
+                "1000",
+                "E.g. 1000. Caps response length to bound latency.",
+            ),
             # 0.4 is a good writing-assistant default — deterministic enough for
             # proofreading, not robotic for rewrites. Range is 0.0–1.0.
-            TextSetting("temperature", "Temperature", "0.4", "0.0 = deterministic, 1.0 = creative. 0.4 is a good writing-assistant default."),
+            TextSetting(
+                "temperature",
+                "Temperature",
+                "0.4",
+                "0.0 = deterministic, 1.0 = creative. 0.4 is a good writing-assistant default.",
+            ),
         ]
-        super().__init__(app, "Ollama (For Experts)", settings,
+        super().__init__(
+            app,
+            "Ollama (For Experts)",
+            settings,
             "• Connect to an Ollama server (local LLM).",
-            "ollama", "Ollama Set-up Instructions",
-            lambda: webbrowser.open("https://github.com/theJayTea/WritingTools?tab=readme-ov-file#-optional-ollama-local-llm-instructions-for-windows-v7-onwards"))
+            "ollama",
+            "Ollama Set-up Instructions",
+            lambda: webbrowser.open(
+                "https://github.com/theJayTea/WritingTools?tab=readme-ov-file#-optional-ollama-local-llm-instructions-for-windows-v7-onwards"
+            ),
+        )
 
     def _safe_int(self, value, default):
         """Parse a TextSetting value as int, falling back to `default` on bad input."""
@@ -880,7 +1059,9 @@ class OllamaProvider(AIProvider):
         except (ValueError, TypeError):
             return default
 
-    def get_response(self, system_instruction: str, prompt: str | list, return_response: bool = False) -> str:
+    def get_response(
+        self, system_instruction: str, prompt: str | list, return_response: bool = False
+    ) -> str:
         """
         Send a chat request to the Ollama server.
 
@@ -895,7 +1076,7 @@ class OllamaProvider(AIProvider):
         else:
             messages = [
                 {"role": "system", "content": system_instruction},
-                {"role": "user", "content": prompt}
+                {"role": "user", "content": prompt},
             ]
 
         # GPT-OSS only accepts string think levels; everything else accepts bool.
@@ -915,8 +1096,8 @@ class OllamaProvider(AIProvider):
                 think=think_value,
                 options=options,
             )
-            response_text = response['message']['content'].strip()
-            if not return_response and not hasattr(self.app, 'current_response_window'):
+            response_text = response["message"]["content"].strip()
+            if not return_response and not hasattr(self.app, "current_response_window"):
                 self.app.output_ready_signal.emit(response_text)
             return response_text
         except Exception as e:
